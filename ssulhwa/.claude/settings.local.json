@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri ''https://raw.githubusercontent.com/Yeachan-Heo/oh-my-claudecode/main/docs/CLAUDE.md'' -OutFile ''$env:USERPROFILE\\\\.claude\\\\CLAUDE.md''\")",
+      "Bash(powershell -Command \"[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-RestMethod -Uri ''https://raw.githubusercontent.com/Yeachan-Heo/oh-my-claudecode/main/docs/CLAUDE.md'' -OutFile \"\"$env:USERPROFILE\\\\.claude\\\\CLAUDE.md\"\"\")",
+      "Bash(npm install:*)",
+      "Bash(claude mcp list:*)",
+      "Bash(dir:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(type:*)",
+      "Bash(powershell -NoProfile -Command \"Set-Location ''d:\\\\Desktop\\\\My Folder\\\\Develop\\\\Project\\\\ssulhwa''; ls -Recurse -File | Select FullName | ft -HideTableHeaders | head -50\")",
+      "Bash(powershell -NoProfile -Command:*)",
+      "Bash(powershell \"Get-ChildItem ''d:\\\\Desktop\\\\My Folder\\\\Develop\\\\Project\\\\ssulhwa'' -Recurse | Measure-Object | Select Count\")",
+      "Bash(powershell \"Get-ChildItem ''d:\\\\Desktop\\\\My Folder\\\\Develop\\\\Project\\\\ssulhwa\\\\character_image'' -Recurse -File -Filter ''*.jpg'' -o *.png'' | Measure-Object | Select Count\")",
+      "Bash(powershell \"Get-ChildItem ''d:\\\\Desktop\\\\My Folder\\\\Develop\\\\Project\\\\ssulhwa\\\\character_image'' -Recurse -File | Measure-Object | Select Count\")"
+    ]
+  }
+}
