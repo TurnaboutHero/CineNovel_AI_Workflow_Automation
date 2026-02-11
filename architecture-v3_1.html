@@ -1,0 +1,2148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>씨네노벨 AI 에이전트 워크플로우 아키텍처 v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0b0f;
+    --bg-card: #12141c;
+    --bg-card-hover: #1a1d28;
+    --bg-elevated: #181a24;
+    --border: #2a2d3a;
+    --border-glow: #3a3d4a;
+    --text-primary: #e8eaf0;
+    --text-secondary: #8b8fa3;
+    --text-muted: #5a5e72;
+    
+    /* Agent Colors */
+    --claude-omc: #d4a574;
+    --claude-omc-glow: rgba(212, 165, 116, 0.15);
+    --claude-writer: #c9956a;
+    --claude-writer-glow: rgba(201, 149, 106, 0.12);
+    --gemini: #8ab4f8;
+    --gemini-glow: rgba(138, 180, 248, 0.15);
+    --antigravity: #4285f4;
+    --antigravity-glow: rgba(66, 133, 244, 0.15);
+    --codex: #10a37f;
+    --codex-glow: rgba(16, 163, 127, 0.15);
+    --banana: #f4b400;
+    --banana-glow: rgba(244, 180, 0, 0.2);
+    --human: #ff6b9d;
+    --human-glow: rgba(255, 107, 157, 0.15);
+    
+    /* Phase Colors */
+    --phase0: #e74c3c;
+    --phase1: #7c5cbf;
+    --phase2: #e67e22;
+    --phase3: #3498db;
+    --phase4: #e74c8b;
+    --phase5: #2ecc71;
+    --phase6: #9b59b6;
+
+    /* Automation */
+    --auto: #2ecc71;
+    --semi: #f39c12;
+    --manual: #e74c3c;
+    --human-required: #ff6b9d;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      linear-gradient(rgba(212, 165, 116, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212, 165, 116, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    position: relative;
+  }
+
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--claude-omc), transparent);
+  }
+
+  .header h1 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 2.2rem;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #e8eaf0 0%, #8b8fa3 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+
+  .header .subtitle {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 300;
+  }
+
+  .header .version-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--phase0), #c0392b);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .concept-box {
+    max-width: 800px;
+    margin: 24px auto 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    text-align: left;
+  }
+
+  .concept-box .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--phase0);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  .concept-box p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  .concept-box strong { color: var(--text-primary); }
+
+  /* ===== WHY BOX ===== */
+  .why-box {
+    max-width: 800px;
+    margin: 16px auto 0;
+    background: linear-gradient(135deg, rgba(46,204,113,0.04), rgba(66,133,244,0.04));
+    border: 1px solid rgba(46,204,113,0.2);
+    border-radius: 12px;
+    padding: 20px 24px;
+    text-align: left;
+  }
+
+  .why-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .why-icon { font-size: 1.2rem; }
+
+  .why-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--auto);
+    letter-spacing: -0.01em;
+  }
+
+  .why-pillars {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .why-pillars { grid-template-columns: 1fr; }
+  }
+
+  .why-pillar {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .pillar-icon { font-size: 1.3rem; margin-bottom: 4px; }
+
+  .pillar-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  .pillar-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .why-footer {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    line-height: 1.5;
+  }
+
+  .why-footer strong { color: var(--auto); }
+
+  /* ===== WHY DOMAIN BOX ===== */
+  .why-domain-box {
+    max-width: 800px;
+    margin: 12px auto 0;
+    background: linear-gradient(135deg, rgba(243,156,18,0.04), rgba(155,89,182,0.04));
+    border: 1px solid rgba(243,156,18,0.2);
+    border-radius: 12px;
+    padding: 20px 24px;
+    text-align: left;
+  }
+
+  .domain-reason-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .domain-reason {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+
+  .domain-reason-num {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(243,156,18,0.15);
+    color: #f39c12;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
+  .domain-reason-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .domain-reason-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+
+  .domain-footer {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    line-height: 1.5;
+  }
+
+  .domain-footer strong { color: #f39c12; }
+
+  /* ===== PARADIGM SECTION ===== */
+  .paradigm-section { margin-bottom: 36px; }
+
+  .paradigm-flow {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 700px) {
+    .paradigm-flow { flex-direction: column; }
+    .paradigm-arrow { transform: rotate(90deg); }
+  }
+
+  .paradigm-card {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .paradigm-old { border-color: rgba(231,76,60,0.3); }
+  .paradigm-new { border-color: rgba(46,204,113,0.3); background: linear-gradient(135deg, var(--bg-card), rgba(46,204,113,0.03)); }
+
+  .paradigm-era {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  .paradigm-old .paradigm-era { color: var(--manual); }
+  .paradigm-new .paradigm-era { color: var(--auto); }
+
+  .paradigm-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+
+  .paradigm-items {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+
+  .paradigm-skill {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+
+  .paradigm-skill strong { color: var(--text-primary); }
+
+  .paradigm-arrow {
+    font-size: 2rem;
+    color: var(--auto);
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .paradigm-takeaway {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .takeaway-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 0.82rem;
+  }
+
+  @media (max-width: 600px) {
+    .takeaway-row { flex-direction: column; gap: 2px; }
+  }
+
+  .takeaway-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    white-space: nowrap;
+    min-width: 180px;
+  }
+
+  .takeaway-text {
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* ===== LEGEND ===== */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 36px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  /* ===== TABS ===== */
+  .tab-container { margin-bottom: 48px; }
+
+  .tab-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+  }
+
+  .tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tab-btn:hover {
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.03);
+  }
+
+  .tab-btn.active {
+    color: var(--claude-omc);
+    border-bottom-color: var(--claude-omc);
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== AUTOMATION BADGES ===== */
+  .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .badge-auto { background: rgba(46,204,113,0.15); color: var(--auto); border: 1px solid rgba(46,204,113,0.3); }
+  .badge-semi { background: rgba(243,156,18,0.15); color: var(--semi); border: 1px solid rgba(243,156,18,0.3); }
+  .badge-manual { background: rgba(231,76,60,0.15); color: var(--manual); border: 1px solid rgba(231,76,60,0.3); }
+  .badge-human { background: rgba(255,107,157,0.12); color: var(--human); border: 1px solid rgba(255,107,157,0.3); }
+  .badge-v3 { background: rgba(231,76,60,0.15); color: var(--phase0); border: 1px solid rgba(231,76,60,0.3); font-size: 0.6rem; }
+
+  /* ===== PHASE CARDS ===== */
+  .phase-section {
+    margin-bottom: 32px;
+  }
+
+  .phase-section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    padding-left: 12px;
+    border-left: 3px solid var(--claude-omc);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .stage-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stage-card:hover { border-color: var(--border-glow); }
+
+  .stage-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stage-number {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    min-width: 40px;
+  }
+
+  .stage-title-block { flex: 1; }
+
+  .stage-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 2px;
+  }
+
+  .stage-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .stage-agents { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .stage-agent-tag {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+
+  .stage-body {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .stage-body { grid-template-columns: 1fr; }
+  }
+
+  .stage-body.full-width { grid-template-columns: 1fr; }
+  @media (max-width: 768px) {
+    .stage-body.full-width { grid-template-columns: 1fr; }
+  }
+
+  .info-block h4 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  .info-block ul {
+    list-style: none;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .info-block li {
+    padding: 3px 0;
+    padding-left: 16px;
+    position: relative;
+  }
+
+  .info-block li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--text-muted);
+  }
+
+  .info-block p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* Phase color accents */
+  .phase0 .stage-header { border-left: 3px solid var(--phase0); }
+  .phase0 .stage-number { color: var(--phase0); }
+  .phase1 .stage-header { border-left: 3px solid var(--phase1); }
+  .phase1 .stage-number { color: var(--phase1); }
+  .phase2 .stage-header { border-left: 3px solid var(--phase2); }
+  .phase2 .stage-number { color: var(--phase2); }
+  .phase3 .stage-header { border-left: 3px solid var(--phase3); }
+  .phase3 .stage-number { color: var(--phase3); }
+  .phase4 .stage-header { border-left: 3px solid var(--phase4); }
+  .phase4 .stage-number { color: var(--phase4); }
+  .phase5 .stage-header { border-left: 3px solid var(--phase5); }
+  .phase5 .stage-number { color: var(--phase5); }
+  .phase6 .stage-header { border-left: 3px solid var(--phase6); }
+  .phase6 .stage-number { color: var(--phase6); }
+
+  /* ===== OUTPUT SECTION ===== */
+  .output-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  @media (max-width: 768px) {
+    .output-section { grid-template-columns: 1fr; }
+  }
+
+  .output-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 0.82rem;
+  }
+
+  .output-card .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  /* ===== BOUNDARY TABLE ===== */
+  .boundary-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.82rem;
+    background: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .boundary-table th {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .boundary-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(42,45,58,0.5);
+    color: var(--text-secondary);
+    vertical-align: top;
+  }
+
+  .boundary-table tr:last-child td { border-bottom: none; }
+
+  .boundary-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .boundary-level {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+
+  .level-human { background: rgba(255,107,157,0.12); color: var(--human); }
+  .level-assisted { background: rgba(243,156,18,0.12); color: var(--semi); }
+  .level-delegated { background: rgba(46,204,113,0.12); color: var(--auto); }
+
+  /* ===== FLOW DIAGRAM ===== */
+  .flow-diagram {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    overflow-x: auto;
+  }
+
+  .flow-diagram .flow-label {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+
+  .flow-auto { background: rgba(46,204,113,0.2); color: var(--auto); }
+  .flow-semi { background: rgba(243,156,18,0.2); color: var(--semi); }
+  .flow-manual { background: rgba(231,76,60,0.2); color: var(--manual); }
+  .flow-human { background: rgba(255,107,157,0.2); color: var(--human); }
+
+  /* ===== ROLE MATRIX ===== */
+  .role-matrix {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.78rem;
+    background: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .role-matrix th {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 10px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .role-matrix td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(42,45,58,0.5);
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+  }
+
+  .role-matrix td:first-child { text-align: left; font-weight: 500; }
+  .role-matrix tr:last-child td { border-bottom: none; }
+  .role-matrix tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ===== TECH CARDS ===== */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .tech-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+
+  .tech-card:hover { border-color: var(--border-glow); }
+
+  .tech-card .tech-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+  }
+
+  .tech-card .tech-role {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .tech-card .tech-tasks {
+    list-style: none;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
+
+  .tech-card .tech-tasks li {
+    padding: 2px 0 2px 16px;
+    position: relative;
+  }
+
+  .tech-card .tech-tasks li::before {
+    content: '•';
+    position: absolute;
+    left: 4px;
+    color: var(--text-muted);
+  }
+
+  /* ===== DIRECTORY ===== */
+  .directory-block {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+  }
+
+  .directory-block .dir-comment { color: var(--text-muted); }
+
+  /* ===== ROADMAP ===== */
+  .roadmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .roadmap-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .roadmap-card .phase-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  .roadmap-card h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .roadmap-card ul {
+    list-style: none;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
+
+  .roadmap-card li {
+    padding: 2px 0 2px 16px;
+    position: relative;
+  }
+
+  .roadmap-card li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--text-muted);
+  }
+
+  /* ===== DIFF TABLE ===== */
+  .diff-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.82rem;
+    background: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .diff-table th {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .diff-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(42,45,58,0.5);
+    color: var(--text-secondary);
+  }
+
+  .diff-table tr:last-child td { border-bottom: none; }
+  .diff-old { color: var(--text-muted); text-decoration: line-through; }
+  .diff-new { color: var(--auto); font-weight: 500; }
+
+  /* ===== SECTION DIVIDER ===== */
+  .section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 32px 0 16px;
+    padding-left: 12px;
+    border-left: 3px solid var(--claude-omc);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* ===== KEY PRINCIPLE BOX ===== */
+  .principle-box {
+    background: linear-gradient(135deg, rgba(231,76,60,0.08), rgba(212,165,116,0.08));
+    border: 1px solid rgba(231,76,60,0.2);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+
+  .principle-box .principle-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--phase0);
+    margin-bottom: 8px;
+  }
+
+  .principle-box p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <h1>씨네노벨 AI 에이전트 워크플로우 <span class="version-badge">v3</span></h1>
+    <div class="subtitle">Cine-Novel Production Pipeline — Phase 0 사전 설계 포함</div>
+    
+    <div class="concept-box">
+      <div class="label">Cine-Novel 컨셉</div>
+      <p>
+        <strong>소설 베이스 + 이미지(삽화/만화) 결합</strong> — 텍스트 서사 위에 시각 연출을 배치하여 
+        영화적 표현을 실현하는 새로운 포맷. 이미지는 단순 삽화가 아닌 <strong>씬 전환, 감정적 하이라이트, 
+        공간 묘사</strong> 등의 연출 장치로 기능한다.
+      </p>
+    </div>
+
+    <div class="why-box">
+      <div class="why-header">
+        <div class="why-icon">⚡</div>
+        <div class="why-title">WHY — 이 프로젝트를 하는 이유</div>
+      </div>
+      <div class="why-pillars">
+        <div class="why-pillar">
+          <div class="pillar-icon">🎓</div>
+          <div class="pillar-label">학습</div>
+          <div class="pillar-desc">AI 에이전트 워크플로우 구축 역량을 직접 만들며 훈련</div>
+        </div>
+        <div class="why-pillar">
+          <div class="pillar-icon">🔄</div>
+          <div class="pillar-label">패러다임 전환</div>
+          <div class="pillar-desc">코드/글을 직접 쓰던 시대 → 문제를 정의하고 해결 방법을 설계하는 시대</div>
+        </div>
+        <div class="why-pillar">
+          <div class="pillar-icon">🚀</div>
+          <div class="pillar-label">실전</div>
+          <div class="pillar-desc">실제 웹소설/웹툰을 AI Agent 자동화로 생산하는 파이프라인 완성</div>
+        </div>
+      </div>
+      <div class="why-footer">
+        에이전트 시대의 핵심 역량 = <strong>무엇을 만들지 정의</strong>하고 <strong>어떻게 만들지 워크플로우를 설계</strong>하는 것
+      </div>
+    </div>
+
+    <div class="why-domain-box">
+      <div class="why-header">
+        <div class="why-icon">🎯</div>
+        <div class="why-title">WHY Cine-Novel — 왜 이 도메인인가</div>
+      </div>
+      <div class="domain-reason-grid">
+        <div class="domain-reason">
+          <div class="domain-reason-num">1</div>
+          <div class="domain-reason-content">
+            <div class="domain-reason-title">이미 가진 전문성</div>
+            <div class="domain-reason-desc">소설 · 웹툰 · 애니메이션 — 누구나 소비자로서 수년간 쌓아온 도메인 감각이 있다. 별도 학습 없이 "이건 좋다 / 이건 어색하다"를 바로 판단할 수 있다.</div>
+          </div>
+        </div>
+        <div class="domain-reason">
+          <div class="domain-reason-num">2</div>
+          <div class="domain-reason-content">
+            <div class="domain-reason-title">품질 판단이 가능해야 피드백 루프가 돌아간다</div>
+            <div class="domain-reason-desc">AI에게 전문지식을 심어주는 것(Skills)도, AI가 만든 결과물을 검증하는 것도 — 결국 사람의 도메인 이해 없이는 불가능하다. 씨네노벨은 그 진입 장벽이 거의 없다.</div>
+          </div>
+        </div>
+        <div class="domain-reason">
+          <div class="domain-reason-num">3</div>
+          <div class="domain-reason-content">
+            <div class="domain-reason-title">복합 파이프라인 훈련</div>
+            <div class="domain-reason-desc">텍스트 생성 + 이미지 생성 + 편집 + 퍼블리싱 — 단일 에이전트가 아닌 다중 에이전트 오케스트레이션을 설계하고 조율하는 연습에 적합하다.</div>
+          </div>
+        </div>
+        <div class="domain-reason">
+          <div class="domain-reason-num">4</div>
+          <div class="domain-reason-content">
+            <div class="domain-reason-title">유의미한 완성물</div>
+            <div class="domain-reason-desc">훈련 과정의 산출물이 실제로 읽히고 공유될 수 있는 창작물이다. 학습용 토이 프로젝트가 아니라 결과 자체가 가치를 가진다.</div>
+          </div>
+        </div>
+      </div>
+      <div class="domain-footer">
+        워크플로우 설계 역량은 도메인 독립적이지만, <strong>그 훈련은 도메인 전문성 위에서만 제대로 작동한다</strong> — 씨네노벨은 그 두 조건을 동시에 만족시킨다
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LEGEND ===== -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--claude-omc)"></div>Claude Code/OMC <span style="font-size:0.65rem;color:var(--text-muted)">(오케스트레이터)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--claude-writer)"></div>Claude <span style="font-size:0.65rem;color:var(--text-muted)">(집필)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--codex)"></div>OpenAI Codex <span style="font-size:0.65rem;color:var(--text-muted)">(규격화·QC·편집)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--gemini)"></div>Gemini 3.0 Pro <span style="font-size:0.65rem;color:var(--text-muted)">(이미지 프롬프트)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--antigravity)"></div>Antigravity <span style="font-size:0.65rem;color:var(--text-muted)">(이미지 생성)</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--human)"></div>Human <span style="font-size:0.65rem;color:var(--text-muted)">(창작 비전·트리거·검증)</span></div>
+  </div>
+
+  <!-- ===== TABS ===== -->
+  <div class="tab-container">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('pipeline')">📋 파이프라인</button>
+      <button class="tab-btn" onclick="switchTab('boundary')">🎯 사람/AI 경계선</button>
+      <button class="tab-btn" onclick="switchTab('dataflow')">🔄 데이터 흐름</button>
+      <button class="tab-btn" onclick="switchTab('techstack')">🛠 기술 스택</button>
+      <button class="tab-btn" onclick="switchTab('roadmap')">🚀 로드맵</button>
+      <button class="tab-btn" onclick="switchTab('diff')">📊 변경 이력</button>
+    </div>
+
+    <!-- ==================== TAB: PIPELINE ==================== -->
+    <div class="tab-panel active" id="tab-pipeline">
+
+      <!-- PHASE 0: 사전 설계 -->
+      <div class="phase-section">
+        <div class="phase-section-title" style="border-left-color:var(--phase0)">
+          PHASE 0 — 사전 설계 (Pre-Production) <span class="badge badge-v3">v3 신규</span>
+        </div>
+
+        <div class="principle-box">
+          <div class="principle-title">⚠ 핵심 원칙</div>
+          <p>Phase 0이 탄탄하지 않으면 이후 파이프라인은 무의미하다. 장르·세계관·캐릭터·시나리오가 명확히 설계되어야 AI가 일관된 품질로 제작할 수 있다. 사람의 창작 비전이 가장 중요한 단계.</p>
+        </div>
+
+        <!-- 0-1 장르/레퍼런스 -->
+        <div class="stage-card phase0">
+          <div class="stage-header">
+            <div class="stage-number">0-1</div>
+            <div class="stage-title-block">
+              <div class="stage-title">장르 · 레퍼런스 설정</div>
+              <div class="stage-subtitle">Genre & Reference Definition</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">🧠 Human 주도</span>
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex 보조</span>
+            </div>
+            <span class="badge badge-human">HUMAN</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>사람이 결정</h4>
+              <ul>
+                <li>장르 선택 (판타지, SF, 현대물, 로맨스 등)</li>
+                <li>톤 & 무드 방향성 (어둡다, 밝다, 시니컬 등)</li>
+                <li>레퍼런스 작품 선정 ("○○ 같은 분위기")</li>
+                <li>타겟 독자층 정의</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>AI가 보조</h4>
+              <ul>
+                <li>Codex — 레퍼런스 작품 분석 데이터셋 구축</li>
+                <li>Codex — 장르 컨벤션/클리셰 정리</li>
+                <li>Codex — 유사 작품 비교표 생성</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0-2 세계관 설계 -->
+        <div class="stage-card phase0">
+          <div class="stage-header">
+            <div class="stage-number">0-2</div>
+            <div class="stage-title-block">
+              <div class="stage-title">세계관 설계</div>
+              <div class="stage-subtitle">World-Building Design</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">🧠 Human 핵심</span>
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex 구축</span>
+              <span class="stage-agent-tag" style="background:var(--claude-omc-glow);color:var(--claude-omc)">OMC 조율</span>
+            </div>
+            <span class="badge badge-semi">SEMI</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>사람이 결정</h4>
+              <ul>
+                <li>세계의 핵심 규칙/법칙 (마법 체계, 기술 수준 등)</li>
+                <li>지리·역사·문화의 골격</li>
+                <li>스토리에 영향 미치는 핵심 설정</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>AI가 구축</h4>
+              <ul>
+                <li>Codex — 세계관 데이터셋 규격화 (JSON/YAML)</li>
+                <li>Codex — 설정 간 모순 검출 · 일관성 검증</li>
+                <li>Codex — 디테일 확장 (지명, 조직, 역사 연표)</li>
+                <li>OMC — 전체 맥락 관리 · 에이전트 간 동기화</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0-3 캐릭터 설계 -->
+        <div class="stage-card phase0">
+          <div class="stage-header">
+            <div class="stage-number">0-3</div>
+            <div class="stage-title-block">
+              <div class="stage-title">캐릭터 설계</div>
+              <div class="stage-subtitle">Character Design (성격 + 비주얼)</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">🧠 Human 핵심</span>
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex 구축</span>
+              <span class="stage-agent-tag" style="background:var(--gemini-glow);color:var(--gemini)">Gemini 비주얼</span>
+            </div>
+            <span class="badge badge-semi">SEMI</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>사람이 결정</h4>
+              <ul>
+                <li>핵심 캐릭터 컨셉 (동기, 성격 코어, 아크)</li>
+                <li>캐릭터 간 관계 구조</li>
+                <li>비주얼 방향성 (화풍, 분위기)</li>
+                <li>대사 스타일 · 음성 가이드</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>AI가 구축</h4>
+              <ul>
+                <li>Codex — 캐릭터 프로필 시트 규격화</li>
+                <li>Codex — 관계도 데이터 구조화</li>
+                <li>Gemini — 캐릭터 비주얼 프롬프트 초안</li>
+                <li>Codex — 대사 톤 일관성 체크리스트</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0-4 시나리오/플롯 -->
+        <div class="stage-card phase0">
+          <div class="stage-header">
+            <div class="stage-number">0-4</div>
+            <div class="stage-title-block">
+              <div class="stage-title">시나리오 · 플롯 구조</div>
+              <div class="stage-subtitle">Scenario & Plot Structure</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">🧠 Human 핵심</span>
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex 구조화</span>
+            </div>
+            <span class="badge badge-semi">SEMI</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>사람이 결정</h4>
+              <ul>
+                <li>전체 스토리 아크 (기승전결, 시즌 구조)</li>
+                <li>핵심 플롯 포인트 · 반전</li>
+                <li>에피소드 커팅 포인트 (어디서 끊을지)</li>
+                <li>클리프행어 · 떡밥 배치 전략</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>AI가 구조화</h4>
+              <ul>
+                <li>Codex — 에피소드별 아웃라인 규격화</li>
+                <li>Codex — 복선 추적 매트릭스</li>
+                <li>Codex — 타임라인 · 이벤트 시퀀스 데이터</li>
+                <li>Codex — 장면 전환 흐름도</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0-5 문체/출력 형식 -->
+        <div class="stage-card phase0">
+          <div class="stage-header">
+            <div class="stage-number">0-5</div>
+            <div class="stage-title-block">
+              <div class="stage-title">문체 · 출력 형식 가이드</div>
+              <div class="stage-subtitle">Writing Style & Output Format</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">🧠 Human 결정</span>
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex 규격화</span>
+            </div>
+            <span class="badge badge-semi">SEMI</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>사람이 결정</h4>
+              <ul>
+                <li>시점 (1인칭/3인칭/전지적 등)</li>
+                <li>문체 톤 (경쾌, 담백, 화려, 노와르 등)</li>
+                <li>문장 스타일 (짧은 호흡 vs 만연체)</li>
+                <li>에피소드당 분량 기준</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>AI가 규격화</h4>
+              <ul>
+                <li>Codex — 문체 가이드라인 문서 생성</li>
+                <li>Codex — 출력 마크다운 템플릿 정의</li>
+                <li>Codex — 금지어/지양 표현 리스트</li>
+                <li>Codex — 샘플 문단 QC 체크리스트</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0-6 이미지 배치 규칙 -->
+        <div class="stage-card phase0">
+          <div class="stage-header">
+            <div class="stage-number">0-6</div>
+            <div class="stage-title-block">
+              <div class="stage-title">이미지 배치 · 연출 규칙</div>
+              <div class="stage-subtitle">Image Placement & Visual Direction</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">🧠 Human 결정</span>
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex 규격화</span>
+              <span class="stage-agent-tag" style="background:var(--gemini-glow);color:var(--gemini)">Gemini 테스트</span>
+            </div>
+            <span class="badge badge-semi">SEMI</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>사람이 결정</h4>
+              <ul>
+                <li>이미지 삽입 기준 (씬 전환, 감정 하이라이트 등)</li>
+                <li>에피소드당 이미지 수 가이드라인</li>
+                <li>화풍 · 아트 스타일 방향</li>
+                <li>이미지-텍스트 밸런스 비율</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>AI가 규격화</h4>
+              <ul>
+                <li>Codex — [IMG:tag] 마커 규칙 정의</li>
+                <li>Codex — 이미지 유형 분류 체계 (풍경/인물/액션 등)</li>
+                <li>Gemini — 스타일 프롬프트 템플릿 초안 + 테스트</li>
+                <li>Codex — Nano Banana Pro 설정 프리셋</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 0-7 검증 -->
+        <div class="stage-card phase0">
+          <div class="stage-header">
+            <div class="stage-number">0-7</div>
+            <div class="stage-title-block">
+              <div class="stage-title">파일럿 검증</div>
+              <div class="stage-subtitle">Pilot Episode Validation</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">🧠 Human 검증</span>
+              <span class="stage-agent-tag" style="background:var(--claude-omc-glow);color:var(--claude-omc)">OMC 총괄</span>
+            </div>
+            <span class="badge badge-human">HUMAN</span>
+          </div>
+          <div class="stage-body full-width">
+            <div class="info-block">
+              <h4>검증 항목</h4>
+              <ul>
+                <li>파일럿 에피소드 1화 생성 → 사람이 직접 읽고 검증</li>
+                <li>문체가 내 스타일대로 나오는가?</li>
+                <li>출력 형식이 원하는 포맷인가?</li>
+                <li>이미지 프롬프트 품질 · 캐릭터 일관성은?</li>
+                <li>에피소드 커팅 포인트가 자연스러운가?</li>
+                <li>이미지 배치 타이밍이 적절한가?</li>
+                <li>→ 불만족 시 Phase 0 해당 단계로 돌아가 재설정</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 1-5: 제작 파이프라인 -->
+      <div class="phase-section">
+        <div class="phase-section-title" style="border-left-color:var(--phase2)">
+          PHASE 1~5 — 제작 파이프라인 (Production)
+        </div>
+
+        <!-- 01 집필 -->
+        <div class="stage-card phase2">
+          <div class="stage-header">
+            <div class="stage-number">01</div>
+            <div class="stage-title-block">
+              <div class="stage-title">집필</div>
+              <div class="stage-subtitle">Writing — Claude 기본, Gemini 3.0 후보</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--claude-writer-glow);color:var(--claude-writer)">Claude 집필</span>
+              <span class="stage-agent-tag" style="background:var(--claude-omc-glow);color:var(--claude-omc)">OMC 조율</span>
+            </div>
+            <span class="badge badge-auto">AUTO</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>작업 내용</h4>
+              <ul>
+                <li>OMC가 context/ 에서 에피소드 아웃라인 로드</li>
+                <li>Claude가 Phase 0 문체 가이드에 따라 집필</li>
+                <li>텍스트 내 [IMG:tag] 마커 자동 삽입</li>
+                <li>OMC가 context와의 일관성 1차 확인</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>산출물</h4>
+              <ul>
+                <li>episodes/ep-XX/draft.md (초고)</li>
+                <li>[IMG:tag] 마커 포함 텍스트</li>
+              </ul>
+              <h4 style="margin-top:12px">비고</h4>
+              <ul>
+                <li>Claude Max 활용 (기본)</li>
+                <li>Gemini 3.0은 Phase 2 비교 테스트 후 선택</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 02 품질 리뷰 -->
+        <div class="stage-card phase3">
+          <div class="stage-header">
+            <div class="stage-number">02</div>
+            <div class="stage-title-block">
+              <div class="stage-title">품질 리뷰</div>
+              <div class="stage-subtitle">Quality Review — Codex의 "90점 보장" QC</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex QC</span>
+              <span class="stage-agent-tag" style="background:var(--claude-omc-glow);color:var(--claude-omc)">OMC 관리</span>
+            </div>
+            <span class="badge badge-auto">AUTO</span>
+            <span class="badge badge-v3">v3 변경</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>Codex 검증 항목</h4>
+              <ul>
+                <li>세계관 설정 일관성 검증 (context/ 대조)</li>
+                <li>캐릭터 성격·대사톤 일관성</li>
+                <li>복선 추적 매트릭스 업데이트</li>
+                <li>문체 가이드 준수 여부</li>
+                <li>[IMG:tag] 배치 적절성 확인</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>산출물</h4>
+              <ul>
+                <li>episodes/ep-XX/review.json (리뷰 리포트)</li>
+                <li>수정 제안 리스트</li>
+                <li>context/ 업데이트 사항 (새 복선 등)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 03 이미지 프롬프트 -->
+        <div class="stage-card phase4">
+          <div class="stage-header">
+            <div class="stage-number">03</div>
+            <div class="stage-title-block">
+              <div class="stage-title">이미지 프롬프트 생성</div>
+              <div class="stage-subtitle">Gemini 3.0 Pro — Nano Banana Pro 최적화</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--gemini-glow);color:var(--gemini)">Gemini 프롬프트</span>
+              <span class="stage-agent-tag" style="background:var(--claude-omc-glow);color:var(--claude-omc)">OMC 호출</span>
+            </div>
+            <span class="badge badge-auto">AUTO</span>
+            <span class="badge badge-v3">v3 변경</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>작업 내용</h4>
+              <ul>
+                <li>OMC → Gemini CLI 호출 (우선)</li>
+                <li>(대안) Antigravity 내부에서 Gemini 직접 실행</li>
+                <li>[IMG:tag] 파싱 → 장면별 이미지 프롬프트 생성</li>
+                <li>Nano Banana Pro 최적화 프롬프트 구조</li>
+                <li>캐릭터 참조 이미지 ID 자동 매칭</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>산출물</h4>
+              <ul>
+                <li>prompts/ep-XX/*.json (프롬프트 배치)</li>
+                <li>각 프롬프트에 스타일·캐릭터·구도 지정</li>
+              </ul>
+              <h4 style="margin-top:12px">Gemini 선택 이유</h4>
+              <ul>
+                <li>Nano Banana Pro가 Gemini 기반 → 궁합 최적</li>
+                <li>이미지 프롬프트 특화 능력</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 04 이미지 생성 -->
+        <div class="stage-card phase4">
+          <div class="stage-header">
+            <div class="stage-number">04</div>
+            <div class="stage-title-block">
+              <div class="stage-title">이미지 생성</div>
+              <div class="stage-subtitle">Antigravity + Nano Banana Pro — 반자동</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--antigravity-glow);color:var(--antigravity)">Antigravity</span>
+              <span class="stage-agent-tag" style="background:var(--banana-glow);color:var(--banana)">Nano Banana Pro</span>
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">Human 트리거</span>
+            </div>
+            <span class="badge badge-semi">SEMI</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>반자동 플로우</h4>
+              <ul>
+                <li>파이프라인 일시 정지</li>
+                <li>Human이 Antigravity에 프롬프트 배치 전달</li>
+                <li>Antigravity가 Nano Banana Pro로 이미지 배치 생성</li>
+                <li>Human이 결과 확인 후 파이프라인 재개</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>품질 관리</h4>
+              <ul>
+                <li>캐릭터 일관성 — Nano Banana Pro 참조 이미지</li>
+                <li>화풍 일관성 — 스타일 프리셋 고정</li>
+                <li>불합격 이미지 → 프롬프트 수정 후 재생성</li>
+              </ul>
+              <h4 style="margin-top:12px">산출물</h4>
+              <ul>
+                <li>assets/ep-XX/*.png (생성된 이미지)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 05 편집 -->
+        <div class="stage-card phase5">
+          <div class="stage-header">
+            <div class="stage-number">05</div>
+            <div class="stage-title-block">
+              <div class="stage-title">편집 · 조립</div>
+              <div class="stage-subtitle">Editing & Assembly — Codex (or Claude)</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex 편집</span>
+              <span class="stage-agent-tag" style="background:var(--claude-omc-glow);color:var(--claude-omc)">OMC 최종</span>
+            </div>
+            <span class="badge badge-auto">AUTO</span>
+            <span class="badge badge-v3">v3 변경</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>작업 내용</h4>
+              <ul>
+                <li>Codex — 텍스트 최종 교정 (오타, 문법)</li>
+                <li>Codex — [IMG:tag] → 실제 이미지 파일 매핑</li>
+                <li>Codex — 텍스트 + 이미지 레이아웃 조립</li>
+                <li>OMC — 전체 에피소드 최종 검수</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>산출물</h4>
+              <ul>
+                <li>episodes/ep-XX/final.md (완성본)</li>
+                <li>episodes/ep-XX/final.html (렌더링 가능)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 06 퍼블리싱 -->
+        <div class="stage-card phase6">
+          <div class="stage-header">
+            <div class="stage-number">06</div>
+            <div class="stage-title-block">
+              <div class="stage-title">패키징 · 퍼블리싱</div>
+              <div class="stage-subtitle">Package Auto + Manual Upload</div>
+            </div>
+            <div class="stage-agents">
+              <span class="stage-agent-tag" style="background:var(--codex-glow);color:var(--codex)">Codex 패키징</span>
+              <span class="stage-agent-tag" style="background:var(--human-glow);color:var(--human)">Human 업로드</span>
+            </div>
+            <span class="badge badge-manual">MANUAL</span>
+          </div>
+          <div class="stage-body">
+            <div class="info-block">
+              <h4>자동 패키징</h4>
+              <ul>
+                <li>Codex — publish/ep-XX/ 패키지 생성</li>
+                <li>content.html + meta.json + thumbnail + assets/</li>
+                <li>플랫폼 독립적 규격</li>
+              </ul>
+            </div>
+            <div class="info-block">
+              <h4>수동 업로드</h4>
+              <ul>
+                <li>Human이 ssulhwa.world에 직접 업로드</li>
+                <li>(미래) publisher.py 자동화 인터페이스 준비</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== TAB: BOUNDARY ==================== -->
+    <div class="tab-panel" id="tab-boundary">
+      
+      <div class="principle-box">
+        <div class="principle-title">🎯 사람/AI 역할 분담 원칙</div>
+        <p>
+          <strong>사람</strong> = 창작 비전 · 핵심 의사결정 · 최종 검증 · 감성 판단<br>
+          <strong>AI</strong> = 규격화 · 데이터 구조화 · 반복 작업 · 일관성 유지 · 확장 · 초안 생성<br><br>
+          핵심은 <strong>"무엇을(What)"은 사람이, "어떻게(How)"는 AI가</strong>. 
+          사람이 방향을 잡고, AI가 실행·규격화·검증을 담당한다.
+        </p>
+      </div>
+
+      <div class="section-title" style="border-left-color:var(--human)">
+        Phase 0 — 사전 설계 단계별 경계선
+      </div>
+
+      <table class="boundary-table">
+        <thead>
+          <tr>
+            <th style="width:15%">단계</th>
+            <th style="width:15%">수준</th>
+            <th style="width:35%">🧠 사람 (반드시)</th>
+            <th style="width:35%">🤖 AI (위임 가능)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0-1 장르/레퍼런스</td>
+            <td><span class="boundary-level level-human">HUMAN 주도</span></td>
+            <td>장르 선택, 톤 결정, 레퍼런스 선정, 독자층 정의</td>
+            <td>레퍼런스 분석 데이터셋, 장르 컨벤션 정리, 유사작 비교표</td>
+          </tr>
+          <tr>
+            <td>0-2 세계관</td>
+            <td><span class="boundary-level level-assisted">AI 보조</span></td>
+            <td>핵심 규칙/법칙, 스토리 영향 설정, 방향성 최종 승인</td>
+            <td>데이터셋 규격화, 모순 검출, 디테일 확장, 연표 생성</td>
+          </tr>
+          <tr>
+            <td>0-3 캐릭터</td>
+            <td><span class="boundary-level level-assisted">AI 보조</span></td>
+            <td>캐릭터 핵심 컨셉, 관계 구조, 비주얼 방향, 대사 스타일</td>
+            <td>프로필 시트 규격화, 관계도 구조화, 비주얼 프롬프트 초안</td>
+          </tr>
+          <tr>
+            <td>0-4 시나리오</td>
+            <td><span class="boundary-level level-assisted">AI 보조</span></td>
+            <td>전체 아크, 핵심 플롯 포인트, 에피소드 커팅, 떡밥 배치</td>
+            <td>아웃라인 규격화, 복선 매트릭스, 타임라인 데이터</td>
+          </tr>
+          <tr>
+            <td>0-5 문체/형식</td>
+            <td><span class="boundary-level level-human">HUMAN 주도</span></td>
+            <td>시점, 문체 톤, 문장 스타일, 분량 기준</td>
+            <td>가이드라인 문서화, 템플릿 정의, 금지어 리스트, QC 체크리스트</td>
+          </tr>
+          <tr>
+            <td>0-6 이미지 규칙</td>
+            <td><span class="boundary-level level-assisted">AI 보조</span></td>
+            <td>삽입 기준, 에피소드당 이미지 수, 화풍, 밸런스 비율</td>
+            <td>[IMG:tag] 규칙 정의, 유형 분류, 프롬프트 템플릿, 프리셋</td>
+          </tr>
+          <tr>
+            <td>0-7 파일럿 검증</td>
+            <td><span class="boundary-level level-human">HUMAN 주도</span></td>
+            <td>파일럿 에피소드 직접 읽기, 스타일 만족도, 최종 승인/반려</td>
+            <td>OMC가 파일럿 생성 총괄, 검증 자동화 가능 항목 리포트</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-title" style="border-left-color:var(--codex)">
+        제작 단계별 경계선
+      </div>
+
+      <table class="boundary-table">
+        <thead>
+          <tr>
+            <th style="width:15%">단계</th>
+            <th style="width:15%">수준</th>
+            <th style="width:35%">🧠 사람</th>
+            <th style="width:35%">🤖 AI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>01 집필</td>
+            <td><span class="boundary-level level-delegated">AI 위임</span></td>
+            <td>아웃라인 최종 확인 (선택적)</td>
+            <td>Claude가 문체 가이드 따라 자동 집필</td>
+          </tr>
+          <tr>
+            <td>02 품질 리뷰</td>
+            <td><span class="boundary-level level-delegated">AI 위임</span></td>
+            <td>리뷰 리포트 확인 (선택적)</td>
+            <td>Codex가 일관성·문법·복선 자동 검증</td>
+          </tr>
+          <tr>
+            <td>03 이미지 프롬프트</td>
+            <td><span class="boundary-level level-delegated">AI 위임</span></td>
+            <td>프롬프트 품질 스팟체크 (선택적)</td>
+            <td>Gemini가 Nano Banana Pro 최적 프롬프트 자동 생성</td>
+          </tr>
+          <tr>
+            <td>04 이미지 생성</td>
+            <td><span class="boundary-level level-assisted">반자동</span></td>
+            <td><strong>트리거 필수</strong> — 프롬프트 확인 후 생성 시작, 결과 검수</td>
+            <td>Antigravity + Nano Banana Pro 배치 생성</td>
+          </tr>
+          <tr>
+            <td>05 편집</td>
+            <td><span class="boundary-level level-delegated">AI 위임</span></td>
+            <td>최종 완성본 확인 (선택적)</td>
+            <td>Codex가 교정·조립·레이아웃 자동 처리</td>
+          </tr>
+          <tr>
+            <td>06 퍼블리싱</td>
+            <td><span class="boundary-level level-human">HUMAN 필수</span></td>
+            <td><strong>직접 업로드</strong> — 최종 확인 후 ssulhwa.world 게시</td>
+            <td>패키지 자동 생성만 담당</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-title" style="border-left-color:var(--claude-omc)">
+        스킬 · 서브에이전트 설계 전략
+      </div>
+
+      <div class="principle-box" style="border-color:rgba(212,165,116,0.3);background:linear-gradient(135deg, rgba(212,165,116,0.08), rgba(16,163,127,0.08))">
+        <div class="principle-title" style="color:var(--claude-omc)">하이브리드 접근: 직접 설계 + OMC 위임</div>
+        <p>
+          <strong>직접 깎아야 하는 것 (품질이 핵심):</strong><br>
+          — 집필 문체 스킬 (Claude 프롬프트)<br>
+          — 이미지 프롬프트 템플릿 (Gemini + Nano Banana Pro)<br>
+          — CLAUDE.md 오케스트레이터 컨텍스트<br>
+          — Phase 0 산출물의 핵심 구조<br><br>
+          <strong>OMC/Codex에 위임 가능한 것 (반복·규격화):</strong><br>
+          — QC 체크리스트 · 검증 로직<br>
+          — 포맷 변환 · 레이아웃 조립<br>
+          — 데이터 구조 규격화 (JSON/YAML 스키마)<br>
+          — 복선 추적 · 타임라인 관리<br>
+          — 패키징 스크립트
+        </p>
+      </div>
+
+    </div>
+
+    <!-- ==================== TAB: DATA FLOW ==================== -->
+    <div class="tab-panel" id="tab-dataflow">
+
+      <div class="section-title" style="border-left-color:var(--claude-omc)">
+        에이전트 간 통신 흐름 <span class="badge badge-v3">v3</span>
+      </div>
+
+      <div class="flow-diagram">
+<span style="color:var(--claude-omc)">■ Claude Code/OMC (오케스트레이터)</span><br>
+│<br>
+├─ <span class="flow-label flow-auto">AUTO</span> <span style="color:var(--codex)">ask_codex</span>("세계관 데이터셋 구축: {context}") → 규격화된 JSON<br>
+├─ <span class="flow-label flow-auto">AUTO</span> <span style="color:var(--claude-writer)">직접 집필</span>("에피소드 XX 집필: {outline + style_guide}") → draft.md<br>
+├─ <span class="flow-label flow-auto">AUTO</span> <span style="color:var(--codex)">ask_codex</span>("품질 리뷰: {draft + context}") → review.json<br>
+├─ <span class="flow-label flow-auto">AUTO</span> <span style="color:var(--gemini)">ask_gemini</span>("이미지 프롬프트: {IMG_tags + characters}") → prompts/*.json<br>
+│   └─ (대안) Antigravity 내부에서 Gemini 직접 호출<br>
+├─ <span class="flow-label flow-semi">SEMI</span> → 파이프라인 일시 정지 → <span style="color:var(--human)">Human 트리거</span><br>
+│   └─ <span style="color:var(--antigravity)">Antigravity</span> + <span style="color:var(--banana)">Nano Banana Pro</span> → assets/*.png<br>
+├─ <span class="flow-label flow-auto">AUTO</span> <span style="color:var(--codex)">ask_codex</span>("편집·조립: {draft + assets}") → final.md/html<br>
+└─ <span class="flow-label flow-manual">MANUAL</span> <span style="color:var(--codex)">Codex 패키징</span> → <span style="color:var(--human)">Human 업로드</span> → ssulhwa.world
+      </div>
+
+      <div class="section-title" style="border-left-color:var(--phase0)">
+        반자동 이미지 생성 플로우 상세
+      </div>
+
+      <div class="flow-diagram">
+<span class="flow-label flow-auto">AUTO</span> OMC가 [IMG:tag] 파싱 → Gemini에 프롬프트 생성 요청<br>
+<span class="flow-label flow-auto">AUTO</span> Gemini가 Nano Banana Pro 최적 프롬프트 생성 → prompts/ep-XX/ 저장<br>
+<span class="flow-label flow-auto">AUTO</span> 파이프라인 일시 정지 ⏸<br>
+<br>
+<span class="flow-label flow-human">HUMAN</span> 사용자가 프롬프트 배치 확인<br>
+<span class="flow-label flow-human">HUMAN</span> Antigravity에 트리거: "prompts/ 읽고 이미지 생성해서 assets/에 저장"<br>
+<span class="flow-label flow-semi">SEMI</span> Antigravity + Nano Banana Pro 배치 실행<br>
+<span class="flow-label flow-human">HUMAN</span> 결과물 검수 → 불합격 시 프롬프트 수정 후 재생성<br>
+<br>
+<span class="flow-label flow-auto">AUTO</span> 파이프라인 재개 ▶ ("완료했어 마저 진행해")
+      </div>
+
+      <div class="section-title" style="border-left-color:var(--claude-omc)">
+        에이전트 역할 매트릭스 <span class="badge badge-v3">v3</span>
+      </div>
+
+      <table class="role-matrix">
+        <thead>
+          <tr>
+            <th style="text-align:left">단계</th>
+            <th style="color:var(--claude-omc)">OMC</th>
+            <th style="color:var(--claude-writer)">Claude</th>
+            <th style="color:var(--codex)">Codex</th>
+            <th style="color:var(--gemini)">Gemini</th>
+            <th style="color:var(--antigravity)">Antigravity</th>
+            <th style="color:var(--human)">Human</th>
+            <th>자동화</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Phase 0 사전설계</td>
+            <td>🎯 총괄</td>
+            <td>—</td>
+            <td>⚙️ 규격화</td>
+            <td>🎨 비주얼</td>
+            <td>—</td>
+            <td>🧠 비전</td>
+            <td><span class="badge badge-semi">SEMI</span></td>
+          </tr>
+          <tr>
+            <td>01 집필</td>
+            <td>🎯 조율</td>
+            <td>✍️ 집필</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="badge badge-auto">AUTO</span></td>
+          </tr>
+          <tr>
+            <td>02 품질 리뷰</td>
+            <td>🎯 관리</td>
+            <td>—</td>
+            <td>👁 QC</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="badge badge-auto">AUTO</span></td>
+          </tr>
+          <tr>
+            <td>03 이미지 프롬프트</td>
+            <td>🎯 호출</td>
+            <td>—</td>
+            <td>—</td>
+            <td>📝 생성</td>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="badge badge-auto">AUTO</span></td>
+          </tr>
+          <tr>
+            <td>04 이미지 생성</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>🎨 생성</td>
+            <td>🔘 트리거</td>
+            <td><span class="badge badge-semi">SEMI</span></td>
+          </tr>
+          <tr>
+            <td>05 편집·조립</td>
+            <td>🎯 최종</td>
+            <td>(대안)</td>
+            <td>✏️ 편집</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="badge badge-auto">AUTO</span></td>
+          </tr>
+          <tr>
+            <td>06 퍼블리싱</td>
+            <td>—</td>
+            <td>—</td>
+            <td>📦 패키징</td>
+            <td>—</td>
+            <td>—</td>
+            <td>🚀 업로드</td>
+            <td><span class="badge badge-manual">MANUAL</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <!-- ==================== TAB: TECH STACK ==================== -->
+    <div class="tab-panel" id="tab-techstack">
+
+      <div class="section-title">핵심 기술 스택 <span class="badge badge-v3">v3</span></div>
+
+      <div class="tech-grid">
+        <div class="tech-card" style="border-left: 3px solid var(--claude-omc)">
+          <div class="tech-name" style="color:var(--claude-omc)">Claude Code / OMC</div>
+          <div class="tech-role">오케스트레이터 + 집필 (기본)</div>
+          <ul class="tech-tasks">
+            <li>전체 파이프라인 오케스트레이션</li>
+            <li>CLAUDE.md 기반 컨텍스트 관리</li>
+            <li>서브에이전트 호출 (ask_codex, ask_gemini)</li>
+            <li>Claude Max 기반 집필 (기본 작가)</li>
+            <li>Phase 0 총괄 · 검증 사이클 관리</li>
+          </ul>
+        </div>
+
+        <div class="tech-card" style="border-left: 3px solid var(--codex)">
+          <div class="tech-name" style="color:var(--codex)">OpenAI Codex</div>
+          <div class="tech-role">규격화 · QC · 편집 — "90점 보장"</div>
+          <ul class="tech-tasks">
+            <li>세계관 데이터셋 규격화 (JSON/YAML)</li>
+            <li>캐릭터 프로필 · 복선 매트릭스 구축</li>
+            <li>품질 리뷰 — 일관성 · 문법 · 가이드 준수</li>
+            <li>텍스트 편집 · 이미지 매핑 · 레이아웃 조립</li>
+            <li>패키징 스크립트 실행</li>
+          </ul>
+        </div>
+
+        <div class="tech-card" style="border-left: 3px solid var(--gemini)">
+          <div class="tech-name" style="color:var(--gemini)">Gemini 3.0 Pro</div>
+          <div class="tech-role">이미지 프롬프트 특화</div>
+          <ul class="tech-tasks">
+            <li>Nano Banana Pro 최적화 프롬프트 생성</li>
+            <li>캐릭터 비주얼 프롬프트 초안 (Phase 0)</li>
+            <li>OMC → Gemini CLI 호출 (우선)</li>
+            <li>(대안) Antigravity 내부 직접 실행</li>
+          </ul>
+        </div>
+
+        <div class="tech-card" style="border-left: 3px solid var(--antigravity)">
+          <div class="tech-name" style="color:var(--antigravity)">Google Antigravity</div>
+          <div class="tech-role">이미지 생성 스테이션</div>
+          <ul class="tech-tasks">
+            <li>Nano Banana Pro 실행 환경</li>
+            <li>이미지 배치 생성 · 저장</li>
+            <li>스터디원 경량 시작 도구</li>
+          </ul>
+        </div>
+
+        <div class="tech-card" style="border-left: 3px solid var(--banana)">
+          <div class="tech-name" style="color:var(--banana)">Nano Banana Pro</div>
+          <div class="tech-role">이미지 생성 엔진 (Gemini 기반)</div>
+          <ul class="tech-tasks">
+            <li>캐릭터 일관성 유지 (참조 이미지)</li>
+            <li>Gemini 기반 → Gemini 프롬프트 궁합 최적</li>
+            <li>다양한 화풍 · 스타일 프리셋 지원</li>
+          </ul>
+        </div>
+
+        <div class="tech-card" style="border-left: 3px solid var(--human)">
+          <div class="tech-name" style="color:var(--human)">Human (사람)</div>
+          <div class="tech-role">창작 비전 · 의사결정 · 최종 검증</div>
+          <ul class="tech-tasks">
+            <li>Phase 0 핵심 창작 의사결정</li>
+            <li>이미지 생성 트리거 · 결과 검수</li>
+            <li>퍼블리싱 최종 업로드</li>
+            <li>파일럿 검증 · 스타일 승인</li>
+            <li>핵심 스킬/프롬프트 직접 설계</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section-title" style="border-left-color:var(--codex)">프로젝트 디렉토리 구조 <span class="badge badge-v3">v3</span></div>
+
+      <div class="directory-block">
+cine-novel-workflow/<br>
+├── <strong>CLAUDE.md</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># OMC 오케스트레이터 컨텍스트</span><br>
+├── <strong>context/</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># Single Source of Truth</span><br>
+│&nbsp;&nbsp; ├── world.yaml &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 세계관 데이터셋</span><br>
+│&nbsp;&nbsp; ├── characters/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 캐릭터 프로필 시트</span><br>
+│&nbsp;&nbsp; ├── plot.yaml &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 전체 플롯 구조</span><br>
+│&nbsp;&nbsp; ├── foreshadow.json &nbsp;&nbsp;&nbsp;<span class="dir-comment"># 복선 추적 매트릭스</span><br>
+│&nbsp;&nbsp; ├── timeline.yaml &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 이벤트 타임라인</span><br>
+│&nbsp;&nbsp; └── style-guide.md &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 문체·출력 가이드라인</span><br>
+├── <strong>references/</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 장르/레퍼런스 분석 자료</span><br>
+├── <strong>characters-visual/</strong> &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 캐릭터 참조 이미지</span><br>
+├── <strong>episodes/</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 에피소드 작업 공간</span><br>
+│&nbsp;&nbsp; └── ep-XX/<br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── outline.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 에피소드 아웃라인</span><br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── draft.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 초고 (Claude 집필)</span><br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── review.json &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># QC 리포트 (Codex)</span><br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── final.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 최종본</span><br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; └── final.html &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 렌더링 가능 버전</span><br>
+├── <strong>prompts/</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 이미지 프롬프트 (Gemini 생성)</span><br>
+│&nbsp;&nbsp; └── ep-XX/*.json<br>
+├── <strong>assets/</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 생성된 이미지 (Antigravity)</span><br>
+│&nbsp;&nbsp; └── ep-XX/*.png<br>
+├── <strong>publish/</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 퍼블리싱 패키지 (Codex 생성)</span><br>
+│&nbsp;&nbsp; └── ep-XX/<br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── content.html<br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── meta.json<br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── thumbnail.png<br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; └── assets/<br>
+├── <strong>skills/</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 에이전트별 스킬 프롬프트</span><br>
+│&nbsp;&nbsp; ├── writer.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># Claude 집필 스킬 (직접 설계)</span><br>
+│&nbsp;&nbsp; ├── img-prompt.md &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># Gemini 이미지 프롬프트 스킬</span><br>
+│&nbsp;&nbsp; ├── qc-checklist.md &nbsp;&nbsp;<span class="dir-comment"># Codex QC 체크리스트</span><br>
+│&nbsp;&nbsp; └── editor.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># Codex 편집 스킬</span><br>
+└── <strong>tools/</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># 자동화 스크립트</span><br>
+&nbsp;&nbsp;&nbsp; ├── publisher.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># (미래) 퍼블리싱 자동화</span><br>
+&nbsp;&nbsp;&nbsp; └── validate.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir-comment"># context 일관성 검증</span>
+      </div>
+
+    </div>
+
+    <!-- ==================== TAB: ROADMAP ==================== -->
+    <div class="tab-panel" id="tab-roadmap">
+
+      <!-- Paradigm Context -->
+      <div class="paradigm-section">
+        <div class="section-title" style="border-left-color:var(--auto)">패러다임 전환 맥락 <span class="badge badge-v3">v3</span></div>
+        
+        <div class="paradigm-flow">
+          <div class="paradigm-card paradigm-old">
+            <div class="paradigm-era">과거</div>
+            <div class="paradigm-title">직접 만드는 시대</div>
+            <div class="paradigm-items">코드를 직접 작성 · 글을 직접 집필 · 이미지를 직접 제작</div>
+            <div class="paradigm-skill">핵심 역량: <strong>실행 능력</strong> (코딩, 글쓰기, 디자인)</div>
+          </div>
+          <div class="paradigm-arrow">→</div>
+          <div class="paradigm-card paradigm-new">
+            <div class="paradigm-era">현재 / 미래</div>
+            <div class="paradigm-title">설계하는 시대</div>
+            <div class="paradigm-items">문제를 정의 · 워크플로우를 설계 · AI 에이전트를 조율</div>
+            <div class="paradigm-skill">핵심 역량: <strong>문제 정의 + 워크플로우 설계</strong></div>
+          </div>
+        </div>
+
+        <div class="paradigm-takeaway">
+          <div class="takeaway-row">
+            <span class="takeaway-label" style="color:var(--claude-omc)">이 프로젝트로 훈련하는 것</span>
+            <span class="takeaway-text">해야 할 일을 정의하고 → 그것을 해결하기 위한 방법을 만들어가며 찾아가는 과정 자체</span>
+          </div>
+          <div class="takeaway-row">
+            <span class="takeaway-label" style="color:var(--codex)">도구가 바뀌어도 남는 것</span>
+            <span class="takeaway-text">태스크 분해, 사람/AI 경계 설정, 품질 기준 수립, 피드백 루프 설계 — 도구 독립적 메타 스킬</span>
+          </div>
+          <div class="takeaway-row">
+            <span class="takeaway-label" style="color:var(--gemini)">씨네노벨이 좋은 연습인 이유</span>
+            <span class="takeaway-text">텍스트 + 이미지 + 편집 + 퍼블리싱 — 다중 에이전트 조율이 필요한 복합 창작 파이프라인</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title" style="border-left-color:var(--phase0)">구현 로드맵 <span class="badge badge-v3">v3</span></div>
+
+      <div class="roadmap-grid">
+        <div class="roadmap-card" style="border-left:3px solid var(--phase0)">
+          <div class="phase-label" style="color:var(--phase0)">Phase 0 — 사전 설계</div>
+          <h4>프로젝트 세팅 + 작품 설계</h4>
+          <ul>
+            <li>디렉토리 구조 생성</li>
+            <li>CLAUDE.md 작성 (OMC 컨텍스트)</li>
+            <li>기존 Antigravity+Codex 작업 결과 마이그레이션</li>
+            <li>0-1 ~ 0-6 사전 설계 순차 진행</li>
+            <li>핵심 스킬 프롬프트 직접 설계 (writer.md, img-prompt.md)</li>
+          </ul>
+        </div>
+
+        <div class="roadmap-card" style="border-left:3px solid var(--phase1)">
+          <div class="phase-label" style="color:var(--phase1)">Phase 1 — 파일럿</div>
+          <h4>에피소드 1화 파일럿 생성 + 검증</h4>
+          <ul>
+            <li>0-7 파일럿 검증 실행</li>
+            <li>전체 파이프라인 1회 순환</li>
+            <li>각 단계별 병목·문제점 기록</li>
+            <li>스타일 만족도 평가 → Phase 0 피드백 루프</li>
+          </ul>
+        </div>
+
+        <div class="roadmap-card" style="border-left:3px solid var(--phase2)">
+          <div class="phase-label" style="color:var(--phase2)">Phase 2 — 작가 비교</div>
+          <h4>Claude vs Gemini 3.0 집필 비교</h4>
+          <ul>
+            <li>동일 에피소드를 Claude · Gemini로 각각 집필</li>
+            <li>문체 일관성 · 캐릭터 보이스 · 창의성 비교</li>
+            <li>비용 대비 품질 평가</li>
+            <li>기본 작가 최종 확정</li>
+          </ul>
+        </div>
+
+        <div class="roadmap-card" style="border-left:3px solid var(--phase3)">
+          <div class="phase-label" style="color:var(--phase3)">Phase 3 — 안정화</div>
+          <h4>파이프라인 안정화 + 반복 생산</h4>
+          <ul>
+            <li>에피소드 3~5화 연속 생산</li>
+            <li>context/ 업데이트 사이클 검증</li>
+            <li>이미지 프롬프트 품질 일관성 확인</li>
+            <li>Codex QC 체크리스트 고도화</li>
+          </ul>
+        </div>
+
+        <div class="roadmap-card" style="border-left:3px solid var(--phase4)">
+          <div class="phase-label" style="color:var(--phase4)">Phase 4 — 스터디 공유</div>
+          <h4>스터디원 온보딩 + 프레임워크 공유</h4>
+          <ul>
+            <li>워크플로우 프레임워크 문서화 (모범 사례)</li>
+            <li>Antigravity 경량 버전 가이드</li>
+            <li>각자 도구 선택 → 개인 워크플로우 구축 지원</li>
+            <li>태스크 분해 · 사람/AI 역할 분담 훈련</li>
+          </ul>
+        </div>
+
+        <div class="roadmap-card" style="border-left:3px solid var(--phase5)">
+          <div class="phase-label" style="color:var(--phase5)">Phase 5 — 고도화</div>
+          <h4>자동화 확대 + 품질 고도화</h4>
+          <ul>
+            <li>이미지 생성 반자동 → 더 자동화 가능성 탐색</li>
+            <li>퍼블리싱 자동화 (publisher.py)</li>
+            <li>독자 피드백 기반 스타일 조정</li>
+            <li>시즌 2 설계 · 장기 연재 체계</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== TAB: DIFF ==================== -->
+    <div class="tab-panel" id="tab-diff">
+
+      <div class="section-title">v2 → v3 변경사항 <span class="badge badge-v3">v3</span></div>
+
+      <table class="diff-table">
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th>v2</th>
+            <th>v3</th>
+            <th>변경 이유</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Phase 0</strong></td>
+            <td class="diff-old">없음 (암묵적)</td>
+            <td class="diff-new">7단계 사전 설계 + 파일럿 검증</td>
+            <td>사전 설계 없이는 이후 파이프라인 무의미</td>
+          </tr>
+          <tr>
+            <td><strong>세계관 설계</strong></td>
+            <td class="diff-old">Gemini 3.0</td>
+            <td class="diff-new">Codex (규격화 특화)</td>
+            <td>Codex의 안정적·꼼꼼한 데이터셋 구축 능력</td>
+          </tr>
+          <tr>
+            <td><strong>집필</strong></td>
+            <td class="diff-old">Gemini 기본, Claude 폴백</td>
+            <td class="diff-new">Claude 기본, Gemini 비교 후보</td>
+            <td>Claude Max 활용, Claude 감성 집필 우선 테스트</td>
+          </tr>
+          <tr>
+            <td><strong>품질 리뷰</strong></td>
+            <td class="diff-old">OMC (Claude)</td>
+            <td class="diff-new">Codex ("90점 보장" QC)</td>
+            <td>꼼꼼한 체크리스트 기반 검증에 Codex가 적합</td>
+          </tr>
+          <tr>
+            <td><strong>이미지 프롬프트</strong></td>
+            <td class="diff-old">OMC가 직접 생성</td>
+            <td class="diff-new">Gemini 3.0 Pro 특화</td>
+            <td>Nano Banana Pro가 Gemini 기반 → 궁합 최적</td>
+          </tr>
+          <tr>
+            <td><strong>편집</strong></td>
+            <td class="diff-old">OMC 교정 + Codex 조립</td>
+            <td class="diff-new">Codex 통합 (교정+조립)</td>
+            <td>편집 전체를 Codex에 일임, OMC는 최종 검수만</td>
+          </tr>
+          <tr>
+            <td><strong>프로젝트명</strong></td>
+            <td class="diff-old">웹소설 + 삽화</td>
+            <td class="diff-new">씨네노벨 (Cine-Novel)</td>
+            <td>소설 + 이미지 결합 포맷 명확화</td>
+          </tr>
+          <tr>
+            <td><strong>사람/AI 경계선</strong></td>
+            <td class="diff-old">없음</td>
+            <td class="diff-new">단계별 HUMAN/AI ASSISTED/AI DELEGATED 분류</td>
+            <td>스터디 교육 목적 + 역할 명확화</td>
+          </tr>
+          <tr>
+            <td><strong>스킬 설계 전략</strong></td>
+            <td class="diff-old">미정</td>
+            <td class="diff-new">하이브리드 (핵심 직접 + 반복 위임)</td>
+            <td>품질 핵심은 직접, 규격화·반복은 AI</td>
+          </tr>
+          <tr>
+            <td><strong>디렉토리</strong></td>
+            <td class="diff-old">기본 구조</td>
+            <td class="diff-new">skills/, references/ 추가, context/ 확장</td>
+            <td>Phase 0 산출물 + 스킬 프롬프트 관리</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>
