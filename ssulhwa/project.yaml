@@ -1,0 +1,88 @@
+# 설화(雪花) 프로젝트 설정
+name: "설화(雪花)"
+description: "한국어 판타지 웹소설 시즌1"
+language: ko
+
+episodes:
+  total: 42
+  id_format: "EP-{num:02d}"
+
+format:
+  char_count: [9000, 11000]
+  scenes: [3, 5]
+  img_markers: [3, 5]
+  scene_separators: [3, 6]
+  header_pattern: "^# EP-\\d+:"
+  next_preview_keyword: "다음 화 예고"
+  img_types: [landscape, character, action, emotion, item]
+
+lore:
+  characters: lore/characters.md
+  world: lore/world.md
+  style_guide: lore/style-guide.md
+  episode_outline: lore/episode-outline.md
+  relationships: lore/relationships.md
+
+context:
+  character_names:
+    사일라즈: "사일라즈 엔타리스"
+    마일스: "마일스 엔타리스"
+    카르마: "카르마 엔타리스"
+    소피아: "소피아"
+    코오리: "츠메타이 코오리"
+    알드릭: "알드릭 아우렐리스"
+    루시안: "루시안 아우렐리스"
+  default_character: "사일라즈 엔타리스"
+  max_character_lines: 80
+  max_world_lines: 60
+  always_include_sections: ["서클 체계"]
+  world_keywords:
+    energy:
+      keywords: [전투, 마나, 기운, 폭주, 마법, 에너지, 서클, 공격, 방어, 검]
+      sections: [에너지원 체계, 에너지 작용 원리, 안정화 매개체, 마나 운용 메커니즘, 마법 분류 체계, 실전 마법 운용]
+    geography:
+      keywords: [루미나리아, 아스트라, 크론하임, 실바렌, 수도, 도시, 숲, 산맥, 동굴]
+      sections: [사회/거점, 지리 개요, "거점/기관 이중 구조"]
+    integration:
+      keywords: [또아리, 통합, 조율, 동적, 꼬기, 3에너지, 해체]
+      sections: [에너지 통합 이론, 또아리 조율, 동적 조율]
+    politics:
+      keywords: [왕실, 견제파, 심사, 카르마, 정치, 왕가, 맹약]
+      sections: [왕가-엔타리스 관계, 왕립 초능력원]
+    dragon:
+      keywords: [드래곤, 코오리, 호노오, 드래고니안, 폴리모프]
+      sections: [드래고니안, 드래곤 사회 규칙]
+
+validation:
+  max_consecutive_past_endings: 4
+  min_sentence_length: 10
+
+preproduction:
+  genre:
+    reference_file: lore/genre-reference.md
+    research_topics:
+      - genre_conventions
+      - reader_expectations
+      - pacing_patterns
+      - popular_elements
+      - typical_structure
+  structure:
+    scenario_file: lore/scenario.md
+    arc_count_range: [2, 6]
+    episodes_per_arc_range: [5, 20]
+    tension_curve_model: "3-act"
+  outline:
+    outline_file: lore/episode-outline.md
+    ep_fields: [핵심 사건, 감정 전개, 떡밥, 엔딩 훅]
+    supplementary_sections:
+      - foreshadow_matrix
+      - character_arc_timeline
+  plot:
+    plot_beats_file: lore/plot-beats.md
+    structure_model: "기승전결"
+    cliffhanger_types: [위기형, 반전형, 질문형, 감정형, 선택형]
+    scene_count_range: [3, 5]
+  review:
+    min_foreshadow_recovery_rate: 0.7
+    max_revision_loops: 2
+  staging_dir: episodes/.staging/preproduction

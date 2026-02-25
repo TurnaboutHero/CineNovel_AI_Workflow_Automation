@@ -17,12 +17,15 @@
 
 ## 구성
 - `lore/world.md` 세계관/규칙/지명/세력/유물
-- `lore/characters.md` 주요 인물 프로필 + 서브 캐릭터
+- `lore/characters.md` 주요 인물 인덱스(요약) + 개별 캐릭터 파일 링크
+- `lore/characters/` 개별 캐릭터 문서(사일라즈/코오리/마일스/카르마/소피아/선대 가주)
 - `lore/relationships.md` 관계도/갈등 구조
 - `lore/scenario.md` 전체 시나리오 아크 구조
 - `lore/templates.md` 작성 양식(캐릭터/세계관/사건/시나리오)
 - `lore/visual/turnaround_specs.md` 캐릭터 삼면도(설명형)
 - `lore/visual/illustration_briefs.md` 일러스트 및 씬 브리프
+
+참고: 판정/성장 상태는 `lore/characters/*.md`에서 관리하고, 시즌 진행은 `lore/scenario.md`에서 관리합니다.
 
 ## 참고 원문
 - `역극/예전 것/새 가족.txt`
