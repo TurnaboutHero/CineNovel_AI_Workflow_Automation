@@ -1,0 +1,13 @@
+{
+  "project": "설화(雪花)",
+  "overall": "PASS",
+  "fail_items": [],
+  "warn_items": ["V4"],
+  "results": {
+    "V1": {"result": "PASS", "detail": "아웃라인 42편"},
+    "V2": {"result": "PASS", "detail": "모든 EP에 필수 필드 완비"},
+    "V3": {"result": "PASS", "detail": "모든 EP에 떡밥 기술됨"},
+    "V4": {"result": "WARN", "detail": "미등장 캐릭터: 알드릭"},
+    "V5": {"result": "PASS", "detail": "모든 EP에 엔딩 훅 존재"}
+  }
+}
